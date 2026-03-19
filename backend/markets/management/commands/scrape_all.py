@@ -21,7 +21,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from markets.models import Category, Market, Product, ScrapeLog
-from markets.scrapers.market_365 import CATEGORIES_365, Market365Scraper
+from markets.scrapers.market_365 import Market365Scraper
 from markets.scrapers.bramil import BramilScraper
 from markets.scrapers.royal import RoyalScraper
 
@@ -36,14 +36,6 @@ def tprint(msg: str):
 
 
 MAX_PAGES = 200  # Prevent infinite loops
-
-def _slugify(text: str) -> str:
-    text = text.lower()
-    text = "".join(
-        c for c in unicodedata.normalize("NFD", text)
-        if unicodedata.category(c) != "Mn"
-    )
-    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
 
 
 def _get_with_retry(session: requests.Session, url: str, params: dict, headers: dict,
@@ -67,94 +59,12 @@ def _get_with_retry(session: requests.Session, url: str, params: dict, headers: 
     return None
 
 
-def scrape_365(dry_run: bool = False) -> int:
-    MARKET = "365"
-    DOMAIN = "365supermercados.com.br"
-    API_BASE = "https://api.instabuy.com.br/apiv3"
-    PAGE_SIZE = 50
-
-    tprint(f"[{MARKET}] Starting scrape")
-
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json",
-    })
-
-    market_obj, _ = Market.objects.update_or_create(
-        slug=MARKET,
-        defaults={"name": "365 Supermercados", "api_base_url": API_BASE, "domain": DOMAIN},
-    )
-
-    # Upsert categories    cat_objs = {}
-    for name in CATEGORIES_365:
-        obj, _ = Category.objects.update_or_create(market=market_obj, name=name, defaults={})
-        cat_objs[name] = obj
-    Category.objects.filter(market=market_obj).exclude(name__in=CATEGORIES_365).delete()
-
-    total = 0
-    for cat_name, cat_obj in cat_objs.items():
-        slug = _slugify(cat_name)
-        tprint(f"[{MARKET}] [{cat_name}] starting (slug={slug})")
-        page = 1
-        cat_total = 0
-
-        while page <= MAX_PAGES:
-            params = {
-                "category_slug": slug,
-                "custom_domain": DOMAIN,
-                "host": DOMAIN,
-                "page": page,
-                "N": PAGE_SIZE,
-            }
-            data = _get_with_retry(session, f"{API_BASE}/layout", params, {}, MARKET, cat_name, page)
-            if data is None:
-                break
-
-            groups = data.get("data", [])
-            if not groups:
-                tprint(f"[{MARKET}] [{cat_name}] page {page} — empty, done")
-                break
-
-            page_count = 0
-            for group in groups:
-                for item in group.get("items", []):
-                    price_config = item.get("price_config", {})
-                    price = price_config.get("price", 0)
-                    promo_price = None
-                    discount = price_config.get("price_discount")
-                    if discount:
-                        promo_price = discount.get("discount_value")
-                    if promo_price is None:
-                        prices_list = item.get("prices", [])
-                        if prices_list:
-                            promo_price = prices_list[0].get("promo_price")
-
-                    obj, _ = Product.objects.update_or_create(
-                        market=market_obj,
-                        name=item.get("name", ""),
-                        defaults={"price": price, "promo_price": promo_price},
-                    )
-                    obj.categories.add(cat_obj)
-                    page_count += 1
-
-            tprint(f"[{MARKET}] [{cat_name}] page {page} — {page_count} products")
-            cat_total += page_count
-            page += 1
-            time.sleep(0.5)
-
-        if page > MAX_PAGES:
-            tprint(f"[{MARKET}] [{cat_name}] WARNING: hit MAX_PAGES ({MAX_PAGES}), stopping early")
-
-        tprint(f"[{MARKET}] [{cat_name}] done — {cat_total} total")
-        total += cat_total
-        time.sleep(1)
-
-    tprint(f"[{MARKET}] Finished — {total} products total")
-    return total
+def scrape_365(scraper_cls, stdout) -> int:
+    scraper = scraper_cls()
+    return scraper.run(stdout=stdout)
 
 
-def scrape_vip(scraper_cls, dry_run: bool = False) -> int:
+def scrape_vip(scraper_cls, stdout) -> int:
     scraper = scraper_cls()
     MARKET = scraper.MARKET_SLUG
 
@@ -236,9 +146,9 @@ def scrape_vip(scraper_cls, dry_run: bool = False) -> int:
 
 
 SCRAPERS = {
-    "365":    (scrape_365,   None),
-    "bramil": (scrape_vip,   BramilScraper),
-    "royal":  (scrape_vip,   RoyalScraper),
+    "365":    (scrape_365, Market365Scraper),
+    "bramil": (scrape_vip, BramilScraper),
+    "royal":  (scrape_vip, RoyalScraper)
 }
 
 
@@ -294,7 +204,7 @@ class Command(BaseCommand):
                 )[0]
             )
             try:
-                count = fn(cls) if cls else fn()
+                count = fn(cls, self.stdout)
                 log.status = ScrapeLog.Status.SUCCESS
                 log.items_count = count
                 return slug, count

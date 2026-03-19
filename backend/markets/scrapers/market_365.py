@@ -27,7 +27,7 @@ CATEGORIES_365 = [
     "Padaria",
     "Congelados",
     "Higiene e Perfumaria",
-    "Bebê Criança",
+    "Bebê & Criança",
     "Pet Shop",
     "Lavagem de Roupas",
     "Cuidados com o Lar",
@@ -49,8 +49,8 @@ def _slugify_category(name: str) -> str:
 
 class Market365Scraper(BaseScraper):
     DOMAIN = "365supermercados.com.br"
+    SUBDOMAIN = "365supermercados"
     MARKET_SLUG = "365"
-    PAGE_SIZE = 50
     API_BASE = "https://api.instabuy.com.br/apiv3"
 
     def __init__(self):
@@ -101,31 +101,71 @@ class Market365Scraper(BaseScraper):
         ).delete()
         return results
 
-    def fetch_products_for_category(self, category: Category, stdout=None) -> list[dict]:
+    def fetch_products_for_category(self, category: Category, stdout) -> list[dict]:
         slug = _slugify_category(category.name)
         page = 1
         products: list[dict] = []
-        while True:
-            params = {
-                "category_slug": slug,
-                "custom_domain": self.DOMAIN,
-                "host": self.DOMAIN,
-                "page": page,
-                "N": self.PAGE_SIZE,
-            }
-            data = self._get("layout", params)
-            groups = data.get("data", [])
-            if not groups:
-                break
-            page_count = 0
-            for group in groups:
-                for item in group.get("items", []):
+
+        params = {
+            "category_slug": slug,
+            "subdomain": self.SUBDOMAIN,
+            "custom_domain": self.DOMAIN,
+            "host": self.DOMAIN,
+        }
+        
+        stdout.write(f"Using params {params}")
+
+        data = self._get("layout", params)
+        if not data:
+            return products
+        
+        groups = data.get("data", [])
+
+        for group in groups:
+            subcategory_id = group.get("id")
+            total_count = group.get("count", 0)
+
+            if not subcategory_id:
+                continue
+
+            page = 1
+            per_page = 30  # API max
+
+            fetched = 0
+
+            stdout.write(f"Fetching {total_count} products from {group.get("title", "Unknown")}")
+
+            while True:
+                item_params = {
+                    "subcategory_id": subcategory_id,
+                    "page": page,
+                    "N": per_page,
+                    "subdomain": self.SUBDOMAIN,
+                    "custom_domain": self.DOMAIN,
+                    "host": self.DOMAIN,
+                }
+
+                resp = self._get("item", item_params)
+
+                if not resp:
+                    break
+
+                items = resp.get("data", [])
+                if not items:
+                    break
+
+                for item in items:
                     products.append(self._normalise(item))
-                    page_count += 1
-            if stdout:
-                stdout.write(f"      page {page}: {page_count} items")
-            page += 1
-            time.sleep(1)
+
+                fetched += len(items)
+
+                if len(items) < per_page or fetched >= total_count:
+                    break
+
+                page += 1
+
+                time.sleep(0.1)
+       
         return products
 
     def _normalise(self, item: dict) -> dict:
@@ -160,9 +200,6 @@ class Market365Scraper(BaseScraper):
             count += 1
         return count
 
-    def fetch_products(self) -> list[dict]:
-        return []
-
     def run(self, stdout=None) -> int:
         categories = self.fetch_categories()
         total = 0
@@ -174,6 +211,6 @@ class Market365Scraper(BaseScraper):
             saved = self._save_products(products, cat_obj)
             total += saved
             if stdout:
-                stdout.write(f"    → {saved} products")
-            time.sleep(2)  # pause between categories
+                stdout.write(f"\n{saved} products saved\n\n")
+            time.sleep(0.1)
         return total

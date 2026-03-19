@@ -1,4 +1,5 @@
 import pytest
+from io import StringIO
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -59,16 +60,15 @@ class TestFetchProductsForCategory:
             return {"data": []}
 
         scraper._get = fake_get
-        scraper.fetch_products_for_category(category)
+        scraper.fetch_products_for_category(category, StringIO())
 
-        assert len(calls) >= 2
+        assert len(calls) == 1
         first_endpoint, first_params = calls[0]
         assert first_endpoint == "layout"
         assert first_params["category_slug"] == "alimentos-basicos"
         assert first_params["custom_domain"] == "365supermercados.com.br"
+        assert first_params["subdomain"] == "365supermercados"
         assert first_params["host"] == "365supermercados.com.br"
-        assert first_params["page"] == 1
-        assert first_params["N"] == scraper.PAGE_SIZE
 
 
 @pytest.mark.django_db
@@ -115,23 +115,29 @@ def test_fetch_products_for_category_collects_all_pages(n_pages):
     scraper = make_scraper()
     category = make_category(scraper, "Padaria")
 
-    page_size = scraper.PAGE_SIZE
-    call_count = [0]
+    page_size = 30
 
     def fake_get(endpoint, params=None):
-        call_count[0] += 1
         page = (params or {}).get("page", 1)
-        if page <= n_pages:
+        if endpoint == "layout":
+            return {
+                "data": [
+                    {"id": 123, "count": n_pages * 30, "title": "Padaria"}
+                ]
+            }
+        elif endpoint == "item":
+            if page > n_pages:
+                return {"data": []}
             items = [
                 {"name": f"item-p{page}-{i}", "price_config": {"price": 1}, "prices": []}
-                for i in range(page_size)
+                for i in range(30)
             ]
-            return {"data": [{"items": items}]}
+            return {"data": items}
         return {"data": []}
 
     scraper._get = fake_get
     with patch("markets.scrapers.market_365.time.sleep"):
-        products = scraper.fetch_products_for_category(category)
+        products = scraper.fetch_products_for_category(category, StringIO())
 
     assert len(products) == n_pages * page_size
 

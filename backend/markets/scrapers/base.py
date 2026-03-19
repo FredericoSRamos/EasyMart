@@ -10,8 +10,8 @@ class BaseScraper(ABC):
         ...
 
     @abstractmethod
-    def fetch_products(self) -> list[dict]:
-        """Return a list of normalised product dicts."""
+    def fetch_products_for_category(self) -> list[dict]:
+        """Return a list of normalised product dicts for a category."""
         ...
 
     @abstractmethod

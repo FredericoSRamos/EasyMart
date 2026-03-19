@@ -28,6 +28,7 @@ dist-ssr
 
 # Backend
 .venv/
+.hypothesis/
 .env
 
 __pycache__/
@@ -35,3 +36,4 @@ __pycache__/
 !**/migrations/__init__.py
 
 db.sqlite3
+db.sqlite3-journal

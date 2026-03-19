@@ -154,11 +154,6 @@ class VIPCommerceScraper(BaseScraper):
         logger.info("Matched %d categories for %s", len(categories), self.MARKET_SLUG)
         return categories
 
-    def fetch_products(self) -> list[dict]:
-        raise NotImplementedError(
-            "VIPCommerceScraper uses fetch_products_for_category per category; call run() instead."
-        )
-
     def fetch_products_for_category(self, category_ext_id: str) -> list[dict]:
         page = 1
         products: list[dict] = []
