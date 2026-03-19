@@ -30,5 +30,8 @@ dist-ssr
 .venv/
 .env
 
-__pycache__
+__pycache__/
+**/migrations/*.py
+!**/migrations/__init__.py
+
 db.sqlite3
