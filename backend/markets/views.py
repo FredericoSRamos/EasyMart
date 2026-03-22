@@ -15,12 +15,12 @@ def on_promo_q() -> Q:
 class ProductFilter(django_filters.FilterSet):
     on_promo = django_filters.BooleanFilter(method="filter_on_promo")
     market_slug = django_filters.CharFilter(field_name="market__slug")
-    category_id = django_filters.NumberFilter(field_name="categories__id")
+    category_id = django_filters.NumberFilter(field_name="category__id")
     market_ids = django_filters.BaseInFilter(field_name="market__id", lookup_expr="in")
 
     class Meta:
         model = Product
-        fields = ["market", "categories", "market_slug", "category_id", "on_promo", "market_ids"]
+        fields = ["market", "category", "market_slug", "category_id", "on_promo", "market_ids"]
 
     def filter_on_promo(self, queryset, name, value):
         if value:
@@ -41,7 +41,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Product.objects.select_related("market").prefetch_related("categories").all()
+    queryset = Product.objects.select_related("market", "category").all()
     serializer_class = ProductSerializer
     filter_backends = [django_filters.DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductFilter

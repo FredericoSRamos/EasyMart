@@ -211,26 +211,59 @@ class VIPCommerceScraper(BaseScraper):
     def run(self, stdout=None) -> int:
         categories = self.fetch_categories()
         total_stored = 0
-        
+        now = timezone.now()
+
         for cat in categories:
             if stdout:
                 stdout.write(f"  Scraping category: {cat['name']}...")
             products = self.fetch_products_for_category(cat["api_dept_id"])
-            
+
             cat_obj = Category.objects.get(id=cat["id"])
+
+            existing = {
+                p.name: p
+                for p in Product.objects.filter(market=self.market)
+            }
+
+            seen = {}
             for p in products:
-                obj, _ = Product.objects.update_or_create(
-                    market=self.market,
-                    name=p["name"],
-                    defaults={
-                        "price": p["price"],
-                        "promo_price": p["promo_price"],
-                    },
+                seen[p["name"]] = p
+            unique_products = list(seen.values())
+
+            to_create = []
+            to_update = []
+
+            for p in unique_products:
+                if p["name"] in existing:
+                    obj = existing[p["name"]]
+                    obj.price = p["price"]
+                    obj.promo_price = p["promo_price"]
+                    obj.category = cat_obj
+                    obj.last_scraped_at = now
+                    to_update.append(obj)
+                else:
+                    to_create.append(
+                        Product(
+                            market=self.market,
+                            name=p["name"],
+                            price=p["price"],
+                            promo_price=p["promo_price"],
+                            category=cat_obj,
+                            last_scraped_at=now,
+                        )
+                    )
+
+            if to_create:
+                Product.objects.bulk_create(to_create)
+            if to_update:
+                Product.objects.bulk_update(
+                    to_update,
+                    fields=["price", "promo_price", "category", "last_scraped_at"],
                 )
-                obj.categories.add(cat_obj)
-                total_stored += 1
+
+            total_stored += len(to_create) + len(to_update)
 
             if stdout:
                 stdout.write(f"    → {len(products)} products")
-        
+
         return total_stored

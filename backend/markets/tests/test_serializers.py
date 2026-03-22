@@ -9,7 +9,7 @@ from markets.serializers import CategorySerializer, ProductSerializer
 REMOVED_PRODUCT_FIELDS = {"external_id", "brand", "stock", "image_url"}
 EXPECTED_PRODUCT_KEYS = {
     "id", "name", "price", "promo_price", "on_promo",
-    "market", "market_slug", "categories", "categories_names", "last_scraped_at",
+    "market", "market_slug", "category", "category_name", "last_scraped_at",
 }
 REMOVED_CATEGORY_FIELDS = {"external_id"}
 EXPECTED_CATEGORY_KEYS = {"id", "name", "market", "market_slug"}
@@ -58,8 +58,8 @@ def test_product_serializer_exact_shape():
         name="Leite Integral 1L",
         price=Decimal("4.99"),
         promo_price=Decimal("3.99"),
+        category=cat,
     )
-    product.categories.set([cat])
 
     data = ProductSerializer(product).data
     assert set(data.keys()) == EXPECTED_PRODUCT_KEYS, (
@@ -72,8 +72,8 @@ def test_product_serializer_exact_shape():
     assert data["on_promo"] is True
     assert data["market"] == market.id
     assert data["market_slug"] == "royal"
-    assert cat.id in data["categories"]
-    assert "Laticínios" in data["categories_names"]
+    assert data["category"] == cat.id
+    assert data["category_name"] == "Laticínios"
 
 
 @pytest.mark.django_db

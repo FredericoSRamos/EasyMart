@@ -4,6 +4,7 @@ import time
 import unicodedata
 
 import requests
+from django.utils import timezone
 
 from markets.models import Category, Market, Product
 
@@ -155,7 +156,8 @@ class Market365Scraper(BaseScraper):
                     break
 
                 for item in items:
-                    products.append(self._normalise(item))
+                    if item.get("stock_infos", {}).get("stock_balance", 0) > 0:
+                        products.append(self._normalise(item))
 
                 fetched += len(items)
 
@@ -186,19 +188,50 @@ class Market365Scraper(BaseScraper):
         }
 
     def _save_products(self, products: list[dict], category: Category) -> int:
-        count = 0
+        now = timezone.now()
+
+        seen = {}
         for p in products:
-            obj, _ = Product.objects.update_or_create(
-                market=self.market,
-                name=p["name"],
-                defaults={
-                    "price": p["price"],
-                    "promo_price": p["promo_price"],
-                },
+            seen[p["name"]] = p
+        unique_products = list(seen.values())
+
+        existing = {
+            p.name: p
+            for p in Product.objects.filter(market=self.market)
+        }
+
+        to_create = []
+        to_update = []
+
+        for p in unique_products:
+            if p["name"] in existing:
+                obj = existing[p["name"]]
+                obj.price = p["price"]
+                obj.promo_price = p["promo_price"]
+                obj.category = category
+                obj.last_scraped_at = now
+                to_update.append(obj)
+            else:
+                to_create.append(
+                    Product(
+                        market=self.market,
+                        name=p["name"],
+                        price=p["price"],
+                        promo_price=p["promo_price"],
+                        category=category,
+                        last_scraped_at=now,
+                    )
+                )
+
+        if to_create:
+            Product.objects.bulk_create(to_create)
+        if to_update:
+            Product.objects.bulk_update(
+                to_update,
+                fields=["price", "promo_price", "category", "last_scraped_at"],
             )
-            obj.categories.add(category)
-            count += 1
-        return count
+
+        return len(to_create) + len(to_update)
 
     def run(self, stdout=None) -> int:
         categories = self.fetch_categories()

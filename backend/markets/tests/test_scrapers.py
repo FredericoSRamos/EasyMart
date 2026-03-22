@@ -81,7 +81,7 @@ class TestSaveProducts:
         scraper._save_products(products, category)
 
         product = Product.objects.get(market=scraper.market, name="Feijão 1kg")
-        assert category in product.categories.all()
+        assert product.category == category
 
     def test_save_products_twice_no_duplicate(self):
         scraper = make_scraper()
@@ -129,7 +129,7 @@ def test_fetch_products_for_category_collects_all_pages(n_pages):
             if page > n_pages:
                 return {"data": []}
             items = [
-                {"name": f"item-p{page}-{i}", "price_config": {"price": 1}, "prices": []}
+                {"name": f"item-p{page}-{i}", "price_config": {"price": 1}, "prices": [], "stock_infos": {"stock_balance": 1}}
                 for i in range(30)
             ]
             return {"data": items}
@@ -161,13 +161,13 @@ def test_save_products_associates_category(product_names):
 
     for name in product_names:
         product = Product.objects.get(market=scraper.market, name=name)
-        assert category in product.categories.all(), (
+        assert product.category == category, (
             f"Product {name!r} missing category {category.name!r}"
         )
 
 
 @pytest.mark.django_db
-def test_save_products_accumulates_multiple_categories():
+def test_save_products_reassigns_category():
     scraper = make_scraper()
     cat_a = make_category(scraper, "Frios")
     cat_b = make_category(scraper, "Laticínios")
@@ -177,9 +177,7 @@ def test_save_products_accumulates_multiple_categories():
     scraper._save_products(product_data, cat_b)
 
     product = Product.objects.get(market=scraper.market, name="Queijo Minas")
-    cats = set(product.categories.all())
-    assert cat_a in cats
-    assert cat_b in cats
+    assert product.category == cat_b
 
 
 @pytest.mark.django_db

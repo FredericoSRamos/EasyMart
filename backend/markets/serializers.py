@@ -19,7 +19,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     market_slug = serializers.CharField(source="market.slug", read_only=True)
-    categories_names = serializers.SerializerMethodField()
+    category_name = serializers.SerializerMethodField()
     on_promo = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -32,10 +32,10 @@ class ProductSerializer(serializers.ModelSerializer):
             "on_promo",
             "market",
             "market_slug",
-            "categories",
-            "categories_names",
+            "category",
+            "category_name",
             "last_scraped_at",
         ]
 
-    def get_categories_names(self, obj):
-        return [c.name for c in obj.categories.all()]
+    def get_category_name(self, obj):
+        return obj.category.name if obj.category else None

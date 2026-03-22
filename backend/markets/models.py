@@ -37,8 +37,10 @@ class Product(models.Model):
     market = models.ForeignKey(
         Market, on_delete=models.CASCADE, related_name="products"
     )
-    categories = models.ManyToManyField(
+    category = models.ForeignKey(
         Category,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         related_name="products",
     )
