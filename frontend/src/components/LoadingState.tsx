@@ -6,14 +6,14 @@ export interface LoadingStateProps {
 function ProductGridSkeleton({ count }: { count: number }) {
   return (
     <div
-      className="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-6"
+      className="grid [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))] gap-8"
       aria-busy="true"
       aria-label="Loading products"
     >
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-lg overflow-hidden bg-bg-tertiary">
           {/* Image placeholder */}
-          <div className="shimmer h-44 rounded-t-lg" />
+          <div className="shimmer h-52 rounded-t-lg" />
           <div className="p-3 flex flex-col gap-2">
             {/* Text line 1 */}
             <div className="shimmer h-3.5 rounded w-3/5" />

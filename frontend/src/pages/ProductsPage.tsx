@@ -3,8 +3,7 @@ import { marketService, productService } from '../services/api';
 import type { Market, Product } from '../services/api';
 import { useSearch } from '../context/SearchContext';
 import { SORT_OPTIONS } from '../components/SortControl';
-import ProductCard from '../components/ProductCard';
-import Pagination from '../components/Pagination';
+import ProductGrid from '../components/ProductGrid';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
@@ -17,10 +16,11 @@ export default function ProductsPage() {
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [loadingMarkets, setLoadingMarkets] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,12 +31,27 @@ export default function ProductsPage() {
       .finally(() => setLoadingMarkets(false));
   }, []);
 
-  useEffect(() => { setPage(1); }, [query, selectedMarkets, ordering, onPromo]);
+  useEffect(() => {
+    setPage(1);
+    setProducts([]);
+    setHasMore(true);
+    // Scroll to top
+    const mainContent = document.getElementById('main-scroller');
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [query, selectedMarkets, ordering, onPromo]);
 
   const fetchProducts = useCallback(() => {
-    setLoadingProducts(true);
+    if (page === 1) {
+      setLoadingProducts(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
-    productService      .getProducts({
+
+    productService
+      .getProducts({
         search: query || undefined,
         market_ids: selectedMarkets.length ? selectedMarkets : undefined,
         ordering,
@@ -44,14 +59,27 @@ export default function ProductsPage() {
         page,
         page_size: PAGE_SIZE,
       })
-      .then((res) => { setProducts(res.data.results); setTotalCount(res.data.count); })
+      .then((res) => {
+        setHasMore(res.data.next !== null);
+        if (page === 1) {
+          setProducts(res.data.results);
+        } else {
+          setProducts((prev) => {
+            const newProducts = res.data.results.filter(
+              (p) => !prev.some((existing) => existing.id === p.id)
+            );
+            return [...prev, ...newProducts];
+          });
+        }
+      })
       .catch(() => setError('Nao foi possivel carregar os produtos.'))
-      .finally(() => setLoadingProducts(false));
+      .finally(() => {
+        setLoadingProducts(false);
+        setLoadingMore(false);
+      });
   }, [query, selectedMarkets, ordering, onPromo, page]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   function toggleMarket(id: number) {
     setSelectedMarkets(
@@ -65,7 +93,7 @@ export default function ProductsPage() {
     <div className="animate-fade-in flex flex-1 min-h-0">
 
       {/* Left sidebar */}
-      <aside className="w-44 shrink-0 border-r border-border flex flex-col">
+      <aside className="w-56 shrink-0 border-r border-border flex flex-col">
         <nav className="flex flex-col h-full" aria-label="Filtros">
           {/* Markets section */}
           <div className="px-3 pt-3 pb-2 shrink-0">
@@ -149,8 +177,8 @@ export default function ProductsPage() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 overflow-y-auto px-8 py-5 space-y-4">
-        {error ? (
+      <div id="main-scroller" className="flex-1 min-w-0 overflow-y-auto px-12 py-5 space-y-4">
+        {error && page === 1 ? (
           <ErrorState message={error} onRetry={fetchProducts} />
         ) : loadingProducts ? (
           <LoadingState variant="product-grid" />
@@ -162,24 +190,17 @@ export default function ProductsPage() {
             onReset={() => { setQuery(''); setSelectedMarkets([]); setOnPromo(false); }}
           />
         ) : (
-          <>
-            <div className="grid [grid-template-columns:repeat(auto-fill,minmax(210px,1fr))] max-[1400px]:[grid-template-columns:repeat(auto-fill,minmax(200px,1fr))] gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', maxWidth: '100%' }}>
-              {products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  showMarket={selectedMarkets.length !== 1}
-                  marketName={
-                    markets.find((m) => m.slug === product.market_slug)?.name ??
-                    product.market_slug
-                  }
-                />
-              ))}
-            </div>
-            {totalPages > 1 && (
-              <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-            )}
-          </>
+          <ProductGrid
+            products={products}
+            markets={markets}
+            showMarket={selectedMarkets.length !== 1}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={() => setPage((p) => p + 1)}
+            error={error}
+            page={page}
+            onRetry={fetchProducts}
+          />
         )}
       </div>
     </div>

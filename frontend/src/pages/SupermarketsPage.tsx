@@ -4,8 +4,7 @@ import type { Market, Category, Product } from '../services/api';
 import { useSearch } from '../context/SearchContext';
 import CategorySidebar from '../components/CategorySidebar';
 import SortControl from '../components/SortControl';
-import ProductCard from '../components/ProductCard';
-import Pagination from '../components/Pagination';
+import ProductGrid from '../components/ProductGrid';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
@@ -27,8 +26,9 @@ export default function SupermarketsPage() {
   const [page, setPage] = useState(1);
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
 
   const fetchMarkets = useCallback(() => {
@@ -53,8 +53,10 @@ export default function SupermarketsPage() {
 
   const fetchProducts = useCallback(() => {
     if (!selectedMarket) return;
-    setLoadingProducts(true);
+    if (page === 1) setLoadingProducts(true);
+    else setLoadingMore(true);
     setProductsError(null);
+
     productService
       .getProducts({
         market_slug: selectedMarket.slug,
@@ -64,23 +66,40 @@ export default function SupermarketsPage() {
         page,
         page_size: PAGE_SIZE,
       })
-      .then((res) => { setProducts(res.data.results); setTotalCount(res.data.count); })
+      .then((res) => {
+        setHasMore(res.data.next !== null);
+        if (page === 1) {
+          setProducts(res.data.results);
+        } else {
+          setProducts((prev) => {
+            const newProducts = res.data.results.filter(
+              (p) => !prev.some((existing) => existing.id === p.id)
+            );
+            return [...prev, ...newProducts];
+          });
+        }
+      })
       .catch(() => setProductsError('Nao foi possivel carregar os produtos.'))
-      .finally(() => setLoadingProducts(false));
+      .finally(() => {
+        setLoadingProducts(false);
+        setLoadingMore(false);
+      });
   }, [selectedMarket, selectedCategory, query, ordering, page]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  // Reset page when search query changes
-  useEffect(() => { setPage(1); }, [query]);
+  useEffect(() => {
+    setPage(1);
+    setProducts([]);
+    setHasMore(true);
+    const mainContent = document.getElementById('main-scroller');
+    if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedMarket, selectedCategory, query, ordering]);
 
   const handleSelectMarket = (market: Market) => {
     setSelectedMarket(market);
     setSelectedCategory(null);
-    setPage(1);
   };
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <div className="animate-fade-in flex flex-col h-full">
@@ -113,7 +132,7 @@ export default function SupermarketsPage() {
       <div className="flex flex-1 min-h-0">
 
         {/* Category sidebar */}
-        <aside className="w-44 shrink-0 border-r border-border flex flex-col">
+        <aside className="w-56 shrink-0 border-r border-border flex flex-col">
           <CategorySidebar
             categories={categories}
             selectedCategory={selectedCategory}
@@ -122,7 +141,7 @@ export default function SupermarketsPage() {
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 min-w-0 overflow-y-auto px-8 py-5 space-y-4">
+        <div id="main-scroller" className="flex-1 min-w-0 overflow-y-auto px-12 py-5 space-y-4">
           {!selectedMarket ? (
             <div className="flex items-center justify-center h-64">
               <p className="text-text-secondary">Selecione um mercado para ver os produtos</p>
@@ -134,7 +153,7 @@ export default function SupermarketsPage() {
                 <SortControl value={ordering} onChange={(v) => { setOrdering(v); setPage(1); }} />
               </div>
 
-              {productsError ? (
+              {productsError && page === 1 ? (
                 <ErrorState message={productsError} onRetry={fetchProducts} />
               ) : loadingProducts ? (
                 <LoadingState variant="product-grid" />
@@ -144,21 +163,17 @@ export default function SupermarketsPage() {
                   onReset={() => { setSelectedCategory(null); setPage(1); }}
                 />
               ) : (
-                <>
-                  <div className="grid [grid-template-columns:repeat(auto-fill,minmax(210px,1fr))] gap-6">
-                    {products.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        showMarket={false}
-                        marketName={selectedMarket.name}
-                      />
-                    ))}
-                  </div>
-                  {totalPages > 1 && (
-                    <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
-                  )}
-                </>
+                  <ProductGrid
+                    products={products}
+                    showMarket={false}
+                    marketName={selectedMarket.name}
+                    hasMore={hasMore}
+                    loadingMore={loadingMore}
+                    onLoadMore={() => setPage((p) => p + 1)}
+                    error={productsError}
+                    page={page}
+                    onRetry={fetchProducts}
+                  />
               )}
             </>
           )}

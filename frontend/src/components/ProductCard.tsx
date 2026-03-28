@@ -24,10 +24,10 @@ export default function ProductCard({ product, marketName, showMarket = true }: 
     <article className="card-hover rounded-xl overflow-hidden flex flex-col border border-white/8 bg-bg-secondary">
       <div
         data-testid="image-placeholder"
-        className="w-full h-28 flex items-center justify-center relative shrink-0"
+        className="w-full h-40 flex items-center justify-center relative shrink-0"
         style={{ background: `${iconColor}14` }}
       >
-        <CategoryIcon size={40} style={{ color: iconColor, opacity: 0.8 }} />
+        <CategoryIcon size={52} style={{ color: iconColor, opacity: 0.8 }} />
 
         {discount > 0 && (
           <span
@@ -39,8 +39,8 @@ export default function ProductCard({ product, marketName, showMarket = true }: 
         )}
       </div>
 
-      <div className="flex flex-col flex-1 px-3.5 pt-3 pb-3.5 gap-1.5">
-        <p className="text-[0.85rem] text-text-primary font-semibold line-clamp-2 leading-snug min-h-[2.5rem]">
+      <div className="flex flex-col flex-1 px-5 pt-4 pb-5 gap-1.5">
+        <p className="text-base text-text-primary font-semibold line-clamp-2 leading-snug min-h-[2.5rem]">
           {product.name}
         </p>
 
@@ -53,7 +53,7 @@ export default function ProductCard({ product, marketName, showMarket = true }: 
         <div className="mt-auto pt-2 border-t border-white/5">
           {product.promo_price ? (
             <div className="flex items-baseline gap-2">
-              <span className="text-[1.25rem] font-bold text-green-400 leading-none">
+              <span className="text-2xl font-bold text-green-400 leading-none">
                 {formatPrice(product.promo_price)}
               </span>
               <span className="text-[0.72rem] text-text-muted line-through leading-none">
@@ -61,7 +61,7 @@ export default function ProductCard({ product, marketName, showMarket = true }: 
               </span>
             </div>
           ) : (
-            <span className="text-[1.25rem] font-bold text-text-primary leading-none">
+            <span className="text-2xl font-bold text-text-primary leading-none">
               {formatPrice(product.price)}
             </span>
           )}

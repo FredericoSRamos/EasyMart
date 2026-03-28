@@ -1,69 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import * as fc from 'fast-check';
-import Pagination from '../../components/Pagination';
 import Layout from '../../components/Layout';
 import { SearchProvider } from '../../context/SearchContext';
 
-function isIconOnly(button: HTMLButtonElement): boolean {
-  return button.textContent?.trim() === '';
-}
-
 describe('Icon-only buttons have aria-label', () => {
-  it('Pagination Previous/Next icon buttons always have a non-empty aria-label', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 2, max: 100 }),
-        fc.integer({ min: 1, max: 100 }),
-        (totalPages, rawPage) => {
-          const currentPage = Math.min(rawPage, totalPages);
-
-          const { container, unmount } = render(
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={vi.fn()}
-            />
-          );
-
-          const allButtons = Array.from(
-            container.querySelectorAll<HTMLButtonElement>('button')
-          );
-          const iconOnlyButtons = allButtons.filter(isIconOnly);
-
-          expect(iconOnlyButtons.length).toBeGreaterThanOrEqual(2);
-
-          for (const btn of iconOnlyButtons) {
-            const label = btn.getAttribute('aria-label');
-            expect(label).toBeTruthy();
-            expect(label!.trim().length).toBeGreaterThan(0);
-          }
-
-          unmount();
-        }
-      ),
-      { numRuns: 50 }
-    );
-  });
-
-  it('Pagination Previous button has aria-label "Página anterior"', () => {
-    const { container } = render(
-      <Pagination currentPage={2} totalPages={5} onPageChange={vi.fn()} />
-    );
-    const allButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'));
-    const iconOnlyButtons = allButtons.filter(isIconOnly);
-    expect(iconOnlyButtons[0].getAttribute('aria-label')).toBe('Página anterior');
-  });
-
-  it('Pagination Next button has aria-label "Próxima página"', () => {
-    const { container } = render(
-      <Pagination currentPage={2} totalPages={5} onPageChange={vi.fn()} />
-    );
-    const allButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'));
-    const iconOnlyButtons = allButtons.filter(isIconOnly);
-    expect(iconOnlyButtons[iconOnlyButtons.length - 1].getAttribute('aria-label')).toBe('Próxima página');
-  });
 
   it('CategorySidebar buttons are NOT icon-only (all have visible text)', () => {
     const { container, unmount } = render(
@@ -73,7 +14,7 @@ describe('Icon-only buttons have aria-label', () => {
       </div>
     );
     const allButtons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'));
-    const iconOnlyButtons = allButtons.filter(isIconOnly);
+    const iconOnlyButtons = allButtons.filter(b => b.textContent?.trim() === '');
     expect(iconOnlyButtons).toHaveLength(0);
     unmount();
   });
@@ -158,11 +99,11 @@ describe('Layout structured zones', () => {
     // z-[100] is rendered as a class string containing z-[100]
     expect(header!.className).toContain('z-[100]');  });
 
-  it('main content wrapper has max-w-[1280px] class', () => {
+  it('main content wrapper has max-w-[1440px] class', () => {
     const { container } = renderLayout();
     const header = container.querySelector('header');
     expect(header).not.toBeNull();
-    const innerDiv = header!.querySelector('.max-w-\\[1280px\\]');
+    const innerDiv = header!.querySelector('.max-w-\\[1440px\\]');
     expect(innerDiv).not.toBeNull();
   });
 
@@ -259,7 +200,7 @@ describe('branding and footer', () => {
   });
 });
 
-import { fireEvent, waitFor, act } from '@testing-library/react';
+import { fireEvent, act } from '@testing-library/react';
 
 describe('search navigates to /products', () => {
   it('typing in SearchBar from a non-searchable page navigates to /products after debounce', () => {

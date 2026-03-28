@@ -49,10 +49,23 @@ function renderPage() {
   );
 }
 
+let mockIntersect: (entries: any[]) => void = vi.fn();
+
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(api.marketService, 'getMarkets').mockResolvedValue({ data: emptyPaginated } as any);
   vi.spyOn(api.productService, 'getProducts').mockResolvedValue({ data: emptyPaginated } as any);
+
+  // Mock IntersectionObserver
+  window.IntersectionObserver = vi.fn().mockImplementation(function (callback: any) {
+    mockIntersect = callback;
+    return {
+      observe: vi.fn(),
+      disconnect: vi.fn(),
+      unobserve: vi.fn(),
+    };
+  }) as any;
+  window.HTMLElement.prototype.scrollTo = vi.fn();
 });
 
 describe('ProductsPage unit tests', () => {
@@ -146,6 +159,35 @@ describe('ProductsPage unit tests', () => {
     mockProducts([makeProduct(1, 'market-1'), makeProduct(2, 'market-1')]);
 
     renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Product 1')).toBeTruthy();
+      expect(screen.getByText('Product 2')).toBeTruthy();
+    });
+  });
+
+  it('accumulates products on scroll', async () => {
+    const p1 = makeProduct(1, 'market-1');
+    const p2 = makeProduct(2, 'market-1');
+    
+    const getProductsSpy = vi.spyOn(api.productService, 'getProducts');
+    // Page 1
+    getProductsSpy.mockResolvedValueOnce({
+      data: { count: 2, next: 'page=2', previous: null, results: [p1] }
+    } as any);
+    // Page 2
+    getProductsSpy.mockResolvedValueOnce({
+      data: { count: 2, next: null, previous: 'page=1', results: [p2] }
+    } as any);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Product 1')).toBeTruthy();
+    });
+
+    // Trigger scroll
+    mockIntersect([{ isIntersecting: true }]);
 
     await waitFor(() => {
       expect(screen.getByText('Product 1')).toBeTruthy();

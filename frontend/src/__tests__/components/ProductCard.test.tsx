@@ -124,7 +124,7 @@ describe('ProductCard unit tests', () => {
     expect(container.textContent).not.toMatch(/-\d+%/);
   });
 
-  it('card body has minimum 1rem padding (px-3.5 class)', () => {
+  it('card body has minimum 1rem padding (px-5 class)', () => {
     const { container } = render(
       <ProductCard product={baseProduct} marketName="Supermercado A" />
     );
@@ -132,7 +132,7 @@ describe('ProductCard unit tests', () => {
     expect(card).not.toBeNull();
     const bodyDiv = card!.querySelector('.flex-col.flex-1');
     expect(bodyDiv).not.toBeNull();
-    expect(bodyDiv!.className).toContain('px-3.5');
+    expect(bodyDiv!.className).toContain('px-5');
   });
 
   it('card body has gap between child elements (gap-1.5 class)', () => {
@@ -236,7 +236,7 @@ describe('renders required fields and omits removed fields', () => {
 
 describe('minimum spacing requirements', () => {
   test.prop([productArbitrary, marketNameArbitrary])(
-    'card body has px-3.5 padding class for any product',
+    'card body has px-5 padding class for any product',
     (product: Product, marketName: string) => {
       const { container, unmount } = render(
         <ProductCard product={product} marketName={marketName} />
@@ -245,7 +245,7 @@ describe('minimum spacing requirements', () => {
       expect(card).not.toBeNull();
       const bodyDiv = card!.querySelector('.flex-col.flex-1');
       expect(bodyDiv).not.toBeNull();
-      expect(bodyDiv!.className).toContain('px-3.5');
+      expect(bodyDiv!.className).toContain('px-5');
       unmount();
     }
   );
