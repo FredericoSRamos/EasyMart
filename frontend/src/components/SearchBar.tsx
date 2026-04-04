@@ -55,8 +55,8 @@ export default function SearchBar({ query, setQuery, size = 'sm', placeholder = 
         onKeyDown={handleKeyDown}
         className={
           isLg
-            ? 'bg-bg-secondary border border-white/15 rounded-xl py-3 pl-12 pr-6 text-base w-full lg:min-w-[480px] outline-none transition-all focus:border-accent-primary focus:shadow-[0_0_0_3px_rgba(59,130,246,0.3)] min-h-[2.5rem] text-text-primary placeholder:text-text-muted'
-            : 'bg-bg-secondary border border-white/15 rounded-full py-2 pl-10 pr-4 text-sm w-72 outline-none transition-all focus:border-accent-primary focus:shadow-[0_0_0_3px_rgba(59,130,246,0.3)] min-h-[2.5rem] text-text-primary placeholder:text-text-muted'
+            ? 'bg-bg-secondary border border-white/15 rounded-xl py-3 pl-12 pr-6 text-base min-w-0 w-full lg:min-w-[480px] outline-none transition-all focus:border-accent-primary focus:shadow-[0_0_0_3px_rgba(59,130,246,0.3)] min-h-[2.5rem] text-text-primary placeholder:text-text-muted'
+            : 'bg-bg-secondary border border-white/15 rounded-full py-2 pl-10 pr-4 text-sm w-full sm:w-72 outline-none transition-all focus:border-accent-primary focus:shadow-[0_0_0_3px_rgba(59,130,246,0.3)] min-h-[2.5rem] text-text-primary placeholder:text-text-muted'
         }
       />
     </div>

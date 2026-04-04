@@ -8,6 +8,7 @@ import ProductGrid from '../components/ProductGrid';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
+import { SlidersHorizontal } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
@@ -30,6 +31,8 @@ export default function SupermarketsPage() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchMarkets = useCallback(() => {
     setLoadingMarkets(true);
@@ -94,6 +97,7 @@ export default function SupermarketsPage() {
     setHasMore(true);
     const mainContent = document.getElementById('main-scroller');
     if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedMarket, selectedCategory, query, ordering]);
 
   const handleSelectMarket = (market: Market) => {
@@ -102,10 +106,10 @@ export default function SupermarketsPage() {
   };
 
   return (
-    <div className="animate-fade-in flex flex-col h-full">
+    <div className="animate-fade-in flex flex-col h-full relative">
 
       {/* Top bar */}
-      <div className="flex items-center gap-2.5 px-6 py-3 border-b border-border flex-wrap bg-bg-secondary/40">
+      <div className="flex items-center gap-2.5 px-4 md:px-6 py-3 border-b border-border overflow-x-auto md:flex-wrap flex-nowrap bg-bg-secondary/40 categories">
         <span className="text-[0.65rem] font-semibold text-text-muted uppercase tracking-widest shrink-0">Mercado</span>
         {loadingMarkets ? (
           <span className="text-sm text-text-muted">A carregar...</span>
@@ -129,19 +133,50 @@ export default function SupermarketsPage() {
       </div>
 
       {/* Body: sidebar + content */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
 
-        {/* Category sidebar */}
-        <aside className="w-56 shrink-0 border-r border-border flex flex-col">
-          <CategorySidebar
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onSelect={(id) => { setSelectedCategory(id); setPage(1); }}
+        {/* Mobile filter FAB */}
+        <button
+          className="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center gap-2 px-4 py-3 bg-accent-primary text-white rounded-full shadow-lg font-medium transition-transform active:scale-95"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <SlidersHorizontal size={20} />
+          <span>Filtros</span>
+        </button>
+
+        {/* Sidebar Overlay */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+            onClick={() => setSidebarOpen(false)}
           />
+        )}
+
+        {/* Category sidebar / Drawer */}
+        <aside className={`
+          fixed top-0 left-0 h-full w-72 z-50 bg-bg-secondary transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:self-start lg:translate-x-0 lg:w-56 lg:shrink-0 lg:border-r lg:border-border lg:z-10 flex flex-col
+        `}>
+          {sidebarOpen && (
+             <div className="lg:hidden px-3 pt-4 pb-2 border-b border-white/5 flex justify-between items-center bg-bg-secondary sticky top-0 z-10">
+               <span className="font-semibold text-text-primary px-1">Filtros</span>
+               <button onClick={() => setSidebarOpen(false)} className="p-2 text-text-secondary hover:text-text-primary">
+                 ✕
+               </button>
+             </div>
+          )}
+          <div className="flex-1 overflow-y-auto">
+            <CategorySidebar
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onSelect={(id) => { setSelectedCategory(id); setPage(1); if (window.innerWidth < 1024) setSidebarOpen(false); }}
+            />
+          </div>
         </aside>
 
         {/* Main content */}
-        <div id="main-scroller" className="flex-1 min-w-0 overflow-y-auto px-12 py-5 space-y-4">
+        <div id="main-scroller" className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 lg:px-10 xl:px-12 py-4 lg:py-5 space-y-4">
           {!selectedMarket ? (
             <div className="flex items-center justify-center h-64">
               <p className="text-text-secondary">Selecione um mercado para ver os produtos</p>

@@ -7,7 +7,7 @@ import ProductGrid from '../components/ProductGrid';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
-import { Tag } from 'lucide-react';
+import { Tag, SlidersHorizontal } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
@@ -22,6 +22,8 @@ export default function ProductsPage() {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     marketService
@@ -40,6 +42,7 @@ export default function ProductsPage() {
     if (mainContent) {
       mainContent.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [query, selectedMarkets, ordering, onPromo]);
 
   const fetchProducts = useCallback(() => {
@@ -90,11 +93,40 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="animate-fade-in flex flex-1 min-h-0">
+    <div className="animate-fade-in flex flex-1 min-h-0 relative">
 
-      {/* Left sidebar */}
-      <aside className="w-56 shrink-0 border-r border-border flex flex-col">
-        <nav className="flex flex-col h-full" aria-label="Filtros">
+      {/* Mobile filter FAB */}
+      <button
+        className="lg:hidden fixed bottom-6 right-6 z-50 flex items-center justify-center gap-2 px-4 py-3 bg-accent-primary text-white rounded-full shadow-lg font-medium transition-transform active:scale-95"
+        onClick={() => setSidebarOpen(true)}
+      >
+        <SlidersHorizontal size={20} />
+        <span>Filtros</span>
+      </button>
+
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Left sidebar / Drawer */}
+      <aside className={`
+        fixed top-0 left-0 h-full w-72 z-50 bg-bg-secondary transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:self-start lg:translate-x-0 lg:w-56 lg:shrink-0 lg:border-r lg:border-border lg:z-10 flex flex-col
+      `}>
+        {sidebarOpen && (
+           <div className="lg:hidden px-3 pt-4 pb-2 border-b border-white/5 flex justify-between items-center bg-bg-secondary sticky top-0 z-10">
+             <span className="font-semibold text-text-primary px-1">Filtros</span>
+             <button onClick={() => setSidebarOpen(false)} className="p-2 text-text-secondary hover:text-text-primary">
+               ✕
+             </button>
+           </div>
+        )}
+        <nav className="flex flex-col flex-1 overflow-y-auto" aria-label="Filtros">
           {/* Markets section */}
           <div className="px-3 pt-3 pb-2 shrink-0">
             <p className="text-[0.65rem] font-semibold text-text-muted uppercase tracking-widest px-1 mb-2">
@@ -177,7 +209,7 @@ export default function ProductsPage() {
       </aside>
 
       {/* Main content */}
-      <div id="main-scroller" className="flex-1 min-w-0 overflow-y-auto px-12 py-5 space-y-4">
+      <div id="main-scroller" className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 lg:px-10 xl:px-12 py-4 lg:py-5 space-y-4">
         {error && page === 1 ? (
           <ErrorState message={error} onRetry={fetchProducts} />
         ) : loadingProducts ? (
