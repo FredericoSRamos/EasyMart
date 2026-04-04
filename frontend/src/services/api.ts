@@ -33,6 +33,7 @@ export interface Product {
     name: string;
     price: string;
     promo_price: string | null;
+    image_url: string;
     on_promo: boolean;
     market: number;
     market_slug: string;

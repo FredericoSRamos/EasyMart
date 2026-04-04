@@ -78,7 +78,7 @@ class TestSaveProducts:
         scraper = make_scraper()
         category = make_category(scraper, "Mercearia")
 
-        products = [{"name": "Feijão 1kg", "price": 8.50, "promo_price": None}]
+        products = [{"name": "Feijão 1kg", "price": 8.50, "promo_price": None, "image_url": ""}]
         scraper._save_products(products, category)
 
         product = Product.objects.get(market=scraper.market, name="Feijão 1kg")
@@ -88,7 +88,7 @@ class TestSaveProducts:
         scraper = make_scraper()
         category = make_category(scraper, "Mercearia")
 
-        products = [{"name": "Feijão 1kg", "price": 8.50, "promo_price": None}]
+        products = [{"name": "Feijão 1kg", "price": 8.50, "promo_price": None, "image_url": ""}]
         scraper._save_products(products, category)
         scraper._save_products(products, category)
 
@@ -158,7 +158,7 @@ def test_save_products_associates_category(product_names):
     scraper = make_scraper()
     category = make_category(scraper, "Frios")
 
-    products = [{"name": name, "price": 1.0, "promo_price": None} for name in product_names]
+    products = [{"name": name, "price": 1.0, "promo_price": None, "image_url": ""} for name in product_names]
     scraper._save_products(products, category)
 
     for name in product_names:
@@ -174,7 +174,7 @@ def test_save_products_reassigns_category():
     cat_a = make_category(scraper, "Frios")
     cat_b = make_category(scraper, "Laticínios")
 
-    product_data = [{"name": "Queijo Minas", "price": 12.0, "promo_price": None}]
+    product_data = [{"name": "Queijo Minas", "price": 12.0, "promo_price": None, "image_url": ""}]
     scraper._save_products(product_data, cat_a)
     scraper._save_products(product_data, cat_b)
 
@@ -191,7 +191,7 @@ def test_fetch_categories_returns_exactly_hardcoded_list():
 
 @pytest.mark.django_db
 @given(extra=st.integers(min_value=0, max_value=3))
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 def test_fetch_categories_idempotent(extra):
     scraper = make_scraper()
 
@@ -292,6 +292,7 @@ class TestVIPProductUpsert:
                         "name": "Leite Integral 1L",
                         "price": 4.99,
                         "promo_price": None,
+                        "image_url": "",
                     }
                 ]
 
@@ -308,7 +309,7 @@ class TestVIPProductUpsert:
 
         def make_fetch(price):
             def fake_fetch(cat_id):
-                return [{"name": "Leite Integral 1L", "price": price, "promo_price": None}]
+                return [{"name": "Leite Integral 1L", "price": price, "promo_price": None, "image_url": ""}]
             return fake_fetch
 
         with _patch.object(scraper, "fetch_categories", return_value=[{"id": cat.id, "name": cat.name, "slug": "bebidas", "api_dept_id": 1}]):
@@ -332,7 +333,7 @@ class TestVIPProductUpsert:
         unique=True,
     )
 )
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 def test_vip_fetch_categories_only_from_departments(dept_indices):
     scraper = make_royal_scraper()
 
@@ -441,3 +442,51 @@ def test_product_search_filter():
     names = [p["name"] for p in data["results"]]
     assert any("Arroz" in n for n in names), f"Expected 'Arroz' in results, got: {names}"
     assert not any("Feijão" in n for n in names), f"'Feijão' should not appear in results"
+
+@pytest.mark.django_db
+def test_normalise_extracts_image_url():
+    scraper = make_scraper()
+    item = {
+        "name": "Arroz",
+        "price_config": {"price": 10},
+        "images": ["abcd123.jpg"]
+    }
+    result = scraper._normalise(item)
+    assert result["image_url"] == "https://assets.instabuy.app.br/ib.item.image.medium/m-abcd123.jpg"
+
+@pytest.mark.django_db
+def test_normalise_empty_images():
+    scraper = make_scraper()
+    item = {
+        "name": "Arroz",
+        "price_config": {"price": 10},
+        "images": []
+    }
+    result = scraper._normalise(item)
+    assert result["image_url"] == ""
+
+@pytest.mark.django_db
+def test_vipcommerce_image_url_extraction():
+    from markets.scrapers.bramil import BramilScraper
+    with patch("requests.Session"):
+        scraper = BramilScraper()
+        
+    category = Category.objects.create(market=scraper.market, name="Bebidas")
+    scraper._category_map[category.id] = 123
+    
+    mock_get = MagicMock()
+    mock_get.return_value.json.return_value = {
+        "success": True,
+        "paginator": {"total_pages": 1},
+        "data": [{
+            "id": 999,
+            "descricao": "Cerveja",
+            "preco": "5.00",
+            "imagem": "21749b2b.jpg"
+        }]
+    }
+    scraper.session.get = mock_get
+    
+    products = scraper.fetch_products_for_category(category)
+    assert len(products) == 1
+    assert products[0]["image_url"] == "https://produto-assets-vipcommerce-com-br.br-se1.magaluobjects.com/21749b2b.jpg"

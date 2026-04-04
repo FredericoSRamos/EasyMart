@@ -40,10 +40,10 @@ class TestProductModel:
         product = self._make_product(market)
         assert not hasattr(product, "stock")
 
-    def test_product_has_no_image_url(self):
+    def test_product_image_url_defaults_to_empty_string(self):
         market = make_market()
         product = self._make_product(market)
-        assert not hasattr(product, "image_url")
+        assert product.image_url == ""
 
     def test_on_promo_true_when_promo_price_less_than_price(self):
         market = make_market()

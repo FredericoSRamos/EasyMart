@@ -8,6 +8,7 @@ class BramilScraper(VIPCommerceScraper):
     DIST_ID = 23
     MARKET_NAME = "Bramil Supermercados"
     MARKET_SLUG = "bramil"
+    IMAGE_CDN = "https://produto-assets-vipcommerce-com-br.br-se1.magaluobjects.com/"
     
     DEPARTMENTS = [
         "Bebidas", "Carnes", "Cereais e farinaceos", "Mercearia", 

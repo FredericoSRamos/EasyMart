@@ -29,6 +29,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "name",
             "price",
             "promo_price",
+            "image_url",
             "on_promo",
             "market",
             "market_slug",

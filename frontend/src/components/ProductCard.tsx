@@ -24,22 +24,48 @@ export default function ProductCard({ product, marketName, showMarket = true }: 
     <article className="card-hover rounded-xl overflow-hidden flex flex-col border border-white/8 bg-bg-secondary">
       <div
         data-testid="image-placeholder"
-        className="w-full h-32 sm:h-36 lg:h-40 flex items-center justify-center relative shrink-0 transition-all"
-        style={{ background: `${iconColor}14` }}
+        className={`w-full h-40 sm:h-44 lg:h-48 flex items-center justify-center relative shrink-0 transition-all ${
+          product.image_url ? 'bg-white' : ''
+        }`}
+        style={!product.image_url ? { background: `${iconColor}14` } : undefined}
       >
-        <CategoryIcon size={52} style={{ color: iconColor, opacity: 0.8 }} />
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-contain p-4 product-image-enter"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const nextEl = e.currentTarget.nextElementSibling as HTMLElement;
+              if (nextEl) nextEl.style.display = 'block';
+              const parent = e.currentTarget.parentElement;
+              if (parent) {
+                parent.style.background = `${iconColor}14`;
+                parent.classList.remove('bg-white');
+              }
+            }}
+          />
+        ) : null}
+        <CategoryIcon 
+          size={56} 
+          style={{ 
+            color: iconColor, 
+            opacity: 0.8, 
+            display: product.image_url ? 'none' : 'block' 
+          }} 
+        />
 
         {discount > 0 && (
           <span
-            className="absolute top-2.5 left-2.5 text-white text-[0.7rem] font-bold px-2 py-0.5 rounded-md leading-none"
-            style={{ background: '#ef4444', boxShadow: '0 2px 6px rgba(239,68,68,0.45)' }}
+            className="absolute top-3 left-3 text-white text-[0.7rem] font-bold px-2 py-0.5 rounded-md leading-none shadow-md border border-white/10"
+            style={{ background: '#ef4444' }}
           >
             -{discount}%
           </span>
         )}
       </div>
 
-      <div className="flex flex-col flex-1 px-3.5 sm:px-4 lg:px-5 pt-3 sm:pt-4 pb-4 sm:pb-5 gap-1.5">
+      <div className="flex flex-col flex-1 px-4 lg:px-5 pt-4 pb-5 gap-2 border-t border-white/5">
         <p className="text-base text-text-primary font-semibold line-clamp-2 leading-snug min-h-[2.5rem]">
           {product.name}
         </p>

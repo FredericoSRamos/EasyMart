@@ -6,10 +6,10 @@ from hypothesis import strategies as st
 from markets.models import Category, Market, Product
 from markets.serializers import CategorySerializer, ProductSerializer
 
-REMOVED_PRODUCT_FIELDS = {"external_id", "brand", "stock", "image_url"}
+REMOVED_PRODUCT_FIELDS = {"external_id", "brand", "stock"}
 EXPECTED_PRODUCT_KEYS = {
     "id", "name", "price", "promo_price", "on_promo",
-    "market", "market_slug", "category", "category_name", "last_scraped_at",
+    "market", "market_slug", "category", "category_name", "last_scraped_at", "image_url",
 }
 REMOVED_CATEGORY_FIELDS = {"external_id"}
 EXPECTED_CATEGORY_KEYS = {"id", "name", "market", "market_slug"}

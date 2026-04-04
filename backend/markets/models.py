@@ -49,6 +49,7 @@ class Product(models.Model):
     promo_price = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True
     )
+    image_url = models.URLField(max_length=500, blank=True, default="")
     last_scraped_at = models.DateTimeField(auto_now=True)
 
     class Meta:

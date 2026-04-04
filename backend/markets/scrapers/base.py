@@ -76,6 +76,7 @@ class BaseScraper(ABC):
                 obj = existing[p["name"]]
                 obj.price = p["price"]
                 obj.promo_price = p["promo_price"]
+                obj.image_url = p.get("image_url", "")
                 obj.category = category
                 obj.last_scraped_at = now
                 to_update.append(obj)
@@ -86,6 +87,7 @@ class BaseScraper(ABC):
                         name=p["name"],
                         price=p["price"],
                         promo_price=p["promo_price"],
+                        image_url=p.get("image_url", ""),
                         category=category,
                         last_scraped_at=now,
                     )
@@ -96,7 +98,7 @@ class BaseScraper(ABC):
         if to_update:
             Product.objects.bulk_update(
                 to_update,
-                fields=["price", "promo_price", "category", "last_scraped_at"],
+                fields=["price", "promo_price", "image_url", "category", "last_scraped_at"],
             )
 
         return len(to_create) + len(to_update)

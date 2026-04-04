@@ -7,6 +7,7 @@ from functools import cached_property
 
 import requests
 from django.utils import timezone
+import time
 
 from markets.models import Category, Market, Product
 from .base import BaseScraper
@@ -66,6 +67,10 @@ class VIPCommerceScraper(BaseScraper):
     def DEPARTMENTS(self) -> list[str]:
         ...
 
+    @property
+    @abstractmethod
+    def IMAGE_CDN(self) -> str:
+        ...
 
 
     def _authenticate(self):
@@ -101,13 +106,31 @@ class VIPCommerceScraper(BaseScraper):
         }
         logger.info("Authenticated %s (sessao-id: %s)", self.MARKET_NAME, self.sessao_id)
 
+    def _get_with_retries(self, url, **kwargs):
+        for attempt in range(5):
+            try:
+                resp = self.session.get(url, **kwargs)
+                if resp.status_code in [429, 500, 502, 503, 504]:
+                    wait = 5 * (attempt + 1)
+                    logger.warning("HTTP %d for %s. Retrying in %ds...", resp.status_code, url, wait)
+                    time.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                return resp
+            except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
+                wait = 5 * (attempt + 1)
+                logger.warning("Network error %s for %s. Retrying in %ds...", type(e).__name__, url, wait)
+                time.sleep(wait)
+                if attempt == 4:
+                    raise
+        raise requests.exceptions.HTTPError(f"Max retries exceeded for url: {url}")
+
     def fetch_categories(self) -> list[dict]:
         if not self.token:
             self._authenticate()
 
         tree_url = f"{self.API_BASE}/org/{self.ORG_ID}/filial/{self.FILIAL_ID}/centro_distribuicao/{self.DIST_ID}/loja/classificacoes_mercadologicas/departamentos/arvore"
-        resp = self.session.get(tree_url, headers=self.api_headers, timeout=30)
-        resp.raise_for_status()
+        resp = self._get_with_retries(tree_url, headers=self.api_headers, timeout=30)
         full_tree = resp.json().get("data", [])
 
         requested_slugs = {self.slugify(d): d for d in self.DEPARTMENTS}
@@ -146,8 +169,7 @@ class VIPCommerceScraper(BaseScraper):
             url = f"{self.API_BASE}/org/{self.ORG_ID}/filial/{self.FILIAL_ID}/centro_distribuicao/{self.DIST_ID}/loja/classificacoes_mercadologicas/departamentos/{category_ext_id}/produtos"
             params = {"page": page}
             
-            resp = self.session.get(url, headers=self.api_headers, params=params, timeout=30)
-            resp.raise_for_status()
+            resp = self._get_with_retries(url, headers=self.api_headers, params=params, timeout=30)
             data = resp.json()
             
             if not data.get("success"):
@@ -168,7 +190,7 @@ class VIPCommerceScraper(BaseScraper):
                 
                 image_url = ""
                 if item.get("imagem"):
-                    image_url = item["imagem"]
+                    image_url = f"{self.IMAGE_CDN}{item['imagem']}"
 
                 products.append({
                     "external_id": external_id,

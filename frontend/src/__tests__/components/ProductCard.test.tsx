@@ -19,6 +19,7 @@ const productArbitrary = fc.record<Product>({
   market_slug: fc.constant('test-market'),
   categories: fc.array(fc.integer({ min: 1 })),
   categories_names: fc.array(fc.string({ minLength: 1, maxLength: 20 })),
+  image_url: fc.oneof(fc.constant(''), fc.constant('https://example.com/img.jpg')),
   last_scraped_at: fc.constant('2024-01-01T00:00:00Z'),
 });
 
@@ -36,6 +37,7 @@ const promoProductArbitrary = fc.record<Product>({
   market_slug: fc.constant('test-market'),
   categories: fc.array(fc.integer({ min: 1 })),
   categories_names: fc.array(fc.string({ minLength: 1, maxLength: 20 })),
+  image_url: fc.oneof(fc.constant(''), fc.constant('https://example.com/img.jpg')),
   last_scraped_at: fc.constant('2024-01-01T00:00:00Z'),
 });
 
@@ -52,6 +54,7 @@ describe('ProductCard unit tests', () => {
     market_slug: 'supermercado-a',
     categories: [2],
     categories_names: ['Grãos'],
+    image_url: '',
     last_scraped_at: '2024-01-01T00:00:00Z',
   };
 
@@ -93,13 +96,36 @@ describe('ProductCard unit tests', () => {
     expect(promoPriceEl).not.toBeUndefined();
   });
 
-  it('does not render brand, image element, or stock text', () => {
+  it('does not render brand, or stock text', () => {
+    const { container } = render(
+      <ProductCard product={baseProduct} marketName="Supermercado A" />
+    );
+    expect(container.textContent).not.toMatch(/\bstock\b/i);
+    expect(container.textContent).not.toContain('Sem marca');
+  });
+
+  it('renders image when image_url is provided and hides placeholder icon', () => {
+    const productWithImg = { ...baseProduct, image_url: 'https://example.com/img.jpg' };
+    const { container } = render(
+      <ProductCard product={productWithImg} marketName="Supermercado A" />
+    );
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img?.src).toBe('https://example.com/img.jpg');
+    
+    // Icon should have display: none
+    const svg = container.querySelector('svg');
+    expect(svg?.style.display).toBe('none');
+  });
+
+  it('renders placeholder icon and no image when image_url is empty', () => {
     const { container } = render(
       <ProductCard product={baseProduct} marketName="Supermercado A" />
     );
     expect(container.querySelector('img')).toBeNull();
-    expect(container.textContent).not.toMatch(/\bstock\b/i);
-    expect(container.textContent).not.toContain('Sem marca');
+    
+    const svg = container.querySelector('svg');
+    expect(svg?.style.display).toBe('block');
   });
 
   it('always renders image placeholder (data-testid="image-placeholder")', () => {
@@ -135,7 +161,7 @@ describe('ProductCard unit tests', () => {
     expect(bodyDiv!.className).toContain('px-5');
   });
 
-  it('card body has gap between child elements (gap-1.5 class)', () => {
+  it('card body has gap between child elements (gap-2 class)', () => {
     const { container } = render(
       <ProductCard product={baseProduct} marketName="Supermercado A" />
     );
@@ -143,7 +169,7 @@ describe('ProductCard unit tests', () => {
     expect(card).not.toBeNull();
     const bodyDiv = card!.querySelector('.flex-col.flex-1');
     expect(bodyDiv).not.toBeNull();
-    expect(bodyDiv!.className).toContain('gap-1.5');
+    expect(bodyDiv!.className).toContain('gap-2');
   });
 
   it('card container has a visible border class (requirement 13.2)', () => {
@@ -221,12 +247,11 @@ describe('renders required fields and omits removed fields', () => {
   );
 
   test.prop([productArbitrary, marketNameArbitrary])(
-    'does not render brand, image element, or stock text for any product',
+    'does not render brand, or stock text for any product',
     (product: Product, marketName: string) => {
       const { container, unmount } = render(
         <ProductCard product={product} marketName={marketName} />
       );
-      expect(container.querySelector('img')).toBeNull();
       expect(container.textContent).not.toMatch(/\bstock\b/i);
       expect(container.textContent).not.toContain('Sem marca');
       unmount();
@@ -251,7 +276,7 @@ describe('minimum spacing requirements', () => {
   );
 
   test.prop([productArbitrary, marketNameArbitrary])(
-    'card body has gap-1.5 class for any product',
+    'card body has gap-2 class for any product',
     (product: Product, marketName: string) => {
       const { container, unmount } = render(
         <ProductCard product={product} marketName={marketName} />
@@ -260,7 +285,7 @@ describe('minimum spacing requirements', () => {
       expect(card).not.toBeNull();
       const bodyDiv = card!.querySelector('.flex-col.flex-1');
       expect(bodyDiv).not.toBeNull();
-      expect(bodyDiv!.className).toContain('gap-1.5');
+      expect(bodyDiv!.className).toContain('gap-2');
       unmount();
     }
   );

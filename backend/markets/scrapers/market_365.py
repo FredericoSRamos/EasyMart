@@ -13,6 +13,7 @@ from .base import BaseScraper
 logger = logging.getLogger(__name__)
 
 API_BASE = "https://api.instabuy.com.br/apiv3"
+INSTABUY_CDN = "https://assets.instabuy.app.br/ib.item.image.medium"
 
 CATEGORIES_365 = [
     "Frutas, Legumes e Verduras",
@@ -50,7 +51,6 @@ class Market365Scraper(BaseScraper):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Accept": "application/json",
         })
-
 
     def _get(self, endpoint: str, extra_params: dict | None = None) -> dict:
         params = {**(extra_params or {})}
@@ -162,8 +162,15 @@ class Market365Scraper(BaseScraper):
             prices_list = item.get("prices", [])
             if prices_list:
                 promo_price = prices_list[0].get("promo_price")
+        
+        image_url = ""
+        images = item.get("images", [])
+        if images:
+            image_url = f"{INSTABUY_CDN}/m-{images[0]}"
+
         return {
             "name": item.get("name", ""),
             "price": price,
             "promo_price": promo_price,
+            "image_url": image_url,
         }
