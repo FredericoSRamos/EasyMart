@@ -36,42 +36,21 @@ CATEGORIES_365 = [
     "Outros",
 ]
 
-
-def _slugify_category(name: str) -> str:
-    """Derive a URL slug from a category name."""
-    text = name.lower()
-    text = "".join(
-        c for c in unicodedata.normalize("NFD", text)
-        if unicodedata.category(c) != "Mn"
-    )
-    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
-    return text
-
-
 class Market365Scraper(BaseScraper):
+    MARKET_NAME = "365 Supermercados"
     DOMAIN = "365supermercados.com.br"
     SUBDOMAIN = "365supermercados"
     MARKET_SLUG = "365"
     API_BASE = "https://api.instabuy.com.br/apiv3"
 
     def __init__(self):
-        self.market = self._ensure_market()
+        super().__init__()
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Accept": "application/json",
         })
 
-    def _ensure_market(self) -> Market:
-        market, _ = Market.objects.update_or_create(
-            slug=self.MARKET_SLUG,
-            defaults={
-                "name": "365 Supermercados",
-                "api_base_url": API_BASE,
-                "domain": self.DOMAIN,
-            },
-        )
-        return market
 
     def _get(self, endpoint: str, extra_params: dict | None = None) -> dict:
         params = {**(extra_params or {})}
@@ -102,8 +81,8 @@ class Market365Scraper(BaseScraper):
         ).delete()
         return results
 
-    def fetch_products_for_category(self, category: Category, stdout) -> list[dict]:
-        slug = _slugify_category(category.name)
+    def fetch_products_for_category(self, category: Category) -> list[dict]:
+        slug = self.slugify(category.name)
         page = 1
         products: list[dict] = []
 
@@ -114,7 +93,8 @@ class Market365Scraper(BaseScraper):
             "host": self.DOMAIN,
         }
         
-        stdout.write(f"Using params {params}")
+        if self.stdout:
+            self.stdout.write(f"Using params {params}")
 
         data = self._get("layout", params)
         if not data:
@@ -134,7 +114,8 @@ class Market365Scraper(BaseScraper):
 
             fetched = 0
 
-            stdout.write(f"Fetching {total_count} products from {group.get("title", "Unknown")}")
+            if self.stdout:
+                self.stdout.write(f"Fetching {total_count} products from {group.get('title', 'Unknown')}")
 
             while True:
                 item_params = {
@@ -186,64 +167,3 @@ class Market365Scraper(BaseScraper):
             "price": price,
             "promo_price": promo_price,
         }
-
-    def _save_products(self, products: list[dict], category: Category) -> int:
-        now = timezone.now()
-
-        seen = {}
-        for p in products:
-            seen[p["name"]] = p
-        unique_products = list(seen.values())
-
-        existing = {
-            p.name: p
-            for p in Product.objects.filter(market=self.market)
-        }
-
-        to_create = []
-        to_update = []
-
-        for p in unique_products:
-            if p["name"] in existing:
-                obj = existing[p["name"]]
-                obj.price = p["price"]
-                obj.promo_price = p["promo_price"]
-                obj.category = category
-                obj.last_scraped_at = now
-                to_update.append(obj)
-            else:
-                to_create.append(
-                    Product(
-                        market=self.market,
-                        name=p["name"],
-                        price=p["price"],
-                        promo_price=p["promo_price"],
-                        category=category,
-                        last_scraped_at=now,
-                    )
-                )
-
-        if to_create:
-            Product.objects.bulk_create(to_create)
-        if to_update:
-            Product.objects.bulk_update(
-                to_update,
-                fields=["price", "promo_price", "category", "last_scraped_at"],
-            )
-
-        return len(to_create) + len(to_update)
-
-    def run(self, stdout=None) -> int:
-        categories = self.fetch_categories()
-        total = 0
-        for cat_dict in categories:
-            cat_obj = Category.objects.get(id=cat_dict["id"])
-            if stdout:
-                stdout.write(f"  Scraping category: {cat_obj.name}...")
-            products = self.fetch_products_for_category(cat_obj, stdout=stdout)
-            saved = self._save_products(products, cat_obj)
-            total += saved
-            if stdout:
-                stdout.write(f"\n{saved} products saved\n\n")
-            time.sleep(0.1)
-        return total

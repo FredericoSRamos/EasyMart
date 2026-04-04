@@ -7,8 +7,8 @@ from markets.models import Category, Market, Product
 from markets.scrapers.market_365 import (
     CATEGORIES_365,
     Market365Scraper,
-    _slugify_category,
 )
+from markets.scrapers.base import BaseScraper
 from unittest.mock import MagicMock, patch
 import re
 
@@ -60,7 +60,8 @@ class TestFetchProductsForCategory:
             return {"data": []}
 
         scraper._get = fake_get
-        scraper.fetch_products_for_category(category, StringIO())
+        scraper.stdout = StringIO()
+        scraper.fetch_products_for_category(category)
 
         assert len(calls) == 1
         first_endpoint, first_params = calls[0]
@@ -100,7 +101,7 @@ SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$")
 @given(name=st.text(min_size=1))
 @settings(max_examples=50)
 def test_slugify_output_charset(name):
-    slug = _slugify_category(name)
+    slug = BaseScraper.slugify(name)
     # If the input has no alphanumeric content the slug may be empty
     if slug:
         assert re.fullmatch(r"[a-z0-9][a-z0-9-]*", slug), (
@@ -136,8 +137,9 @@ def test_fetch_products_for_category_collects_all_pages(n_pages):
         return {"data": []}
 
     scraper._get = fake_get
+    scraper.stdout = StringIO()
     with patch("markets.scrapers.market_365.time.sleep"):
-        products = scraper.fetch_products_for_category(category, StringIO())
+        products = scraper.fetch_products_for_category(category)
 
     assert len(products) == n_pages * page_size
 
@@ -241,7 +243,7 @@ class TestVIPFetchCategories:
         returned_names = {r["name"] for r in results}
         assert "NotInDepartments" not in returned_names
         for name in returned_names:
-            assert scraper._slugify(name) in {scraper._slugify(d) for d in scraper.DEPARTMENTS}
+            assert scraper.slugify(name) in {scraper.slugify(d) for d in scraper.DEPARTMENTS}
 
     def test_non_department_category_not_in_db(self):
         scraper = make_royal_scraper()
@@ -348,9 +350,9 @@ def test_vip_fetch_categories_only_from_departments(dept_indices):
 
     results = scraper.fetch_categories()
 
-    department_slugs = {scraper._slugify(d) for d in scraper.DEPARTMENTS}
+    department_slugs = {scraper.slugify(d) for d in scraper.DEPARTMENTS}
     for cat in results:
-        assert scraper._slugify(cat["name"]) in department_slugs, (
+        assert scraper.slugify(cat["name"]) in department_slugs, (
             f"Category {cat['name']!r} is not in DEPARTMENTS"
         )
 

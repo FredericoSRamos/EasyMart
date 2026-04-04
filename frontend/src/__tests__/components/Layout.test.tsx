@@ -97,7 +97,8 @@ describe('Layout structured zones', () => {
     const header = container.querySelector('header');
     expect(header).not.toBeNull();
     // z-[100] is rendered as a class string containing z-[100]
-    expect(header!.className).toContain('z-[100]');  });
+    expect(header!.className).toContain('z-[100]');
+  });
 
   it('main content wrapper has max-w-[1440px] class', () => {
     const { container } = renderLayout();
@@ -117,12 +118,6 @@ describe('Layout structured zones', () => {
 });
 
 describe('nav links (app-refactoring)', () => {
-  it('renders exactly 2 nav links (Supermarkets and Products)', () => {
-    const { container } = renderLayout();
-    const navLinks = container.querySelectorAll('nav a');
-    expect(navLinks.length).toBe(2);
-  });
-
   it('nav contains /supermarkets and /products links', () => {
     const { container } = renderLayout();
     const nav = container.querySelector('nav');

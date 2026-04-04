@@ -9,15 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from markets.models import ScrapeLog
-from markets.scrapers.market_365 import Market365Scraper
-from markets.scrapers.bramil import BramilScraper
-from markets.scrapers.royal import RoyalScraper
-
-SCRAPER_REGISTRY: dict[str, type] = {
-    "365": Market365Scraper,
-    "bramil": BramilScraper,
-    "royal": RoyalScraper,
-}
+from markets.scrapers import SCRAPER_REGISTRY
 
 
 class Command(BaseCommand):
